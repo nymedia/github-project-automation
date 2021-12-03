@@ -1,0 +1,54 @@
+name: Add item to project
+
+on:
+  workflow_call:
+    inputs:
+      organization:
+        required: true
+        type: string
+      project_number:
+        required: true
+        type: string
+    secrets:
+      token:
+        required: true
+
+jobs:
+  track_issue:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get project data
+        env:
+          GITHUB_TOKEN: ${{ secrets.token }}
+          ORGANIZATION: ${{ inputs.organization }}
+          PROJECT_NUMBER: ${{ inputs.project_number }}
+        run: |
+          gh api graphql --header 'GraphQL-Features: projects_next_graphql' -f query='
+            query($org: String!, $number: Int!) {
+              organization(login: $org){
+                projectNext(number: $number) {
+                  id
+                  fields(first:20) {
+                    nodes {
+                      id
+                      name
+                      settings
+                    }
+                  }
+                }
+              }
+            }' -f org=$ORGANIZATION -F number=$PROJECT_NUMBER > project_data.json
+          echo 'PROJECT_ID='$(jq '.data.organization.projectNext.id' project_data.json) >> $GITHUB_ENV
+      - name: Add issue to project
+        env:
+          GITHUB_TOKEN: ${{ secrets.token }}
+          NODE_ID: ${{ github.event.issue.node_id }}
+        run: |
+          gh api graphql --header 'GraphQL-Features: projects_next_graphql' -f query='
+            mutation($project:ID!, $node_id:ID!) {
+              addProjectNextItem(input: {projectId: $project, contentId: $node_id}) {
+                projectNextItem {
+                  id
+                }
+              }
+            }' -f project=$PROJECT_ID -f node_id=$NODE_ID
