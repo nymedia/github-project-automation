@@ -8,7 +8,7 @@ on:
         type: string
       project_number:
         required: true
-        type: string
+        type: number
     secrets:
       token:
         required: true
