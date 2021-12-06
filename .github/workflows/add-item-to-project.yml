@@ -12,7 +12,7 @@ on:
 
 jobs:
   track_issue:
-    runs-on: self-hosted
+    runs-on: issues
     steps:
       - name: Get project data
         env:
