@@ -1,0 +1,58 @@
+name: Merge upstream to downstream
+
+on:
+  workflow_call:
+    inputs:
+      upstream-repository:
+        required: true
+        type: string
+      upstream-branch:
+        required: true
+        type: string
+      downstream-repository:
+        required: true
+        type: string
+      downstream-branch:
+        required: true
+        type: string
+      assignee:
+        required: false
+        type: string
+      pr-body:
+        required: false
+        type: string
+        default: ":crown: *An automated PR*"
+    secrets:
+      token:
+        required: true
+
+jobs:
+  merge-upstream-to-downstream:
+    runs-on: issues
+    env:
+      GITHUB_UPSTREAM_REPOSITORY: ${{ inputs.upstream-repository }}
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          ref: ${{ inputs.downstream-branch }}
+          repository: ${{ inputs.downstream-repository }}
+          token: ${{ secrets.token }}
+          fetch-depth: 0
+      - uses: fregante/setup-git-user@v1
+      - run: git checkout -b update/${{ inputs.upstream-repository }}
+      - run: git remote add ${GITHUB_UPSTREAM_REPOSITORY//[\/]} https://github.com/${{ inputs.upstream-repository }}.git
+      - run: git fetch ${GITHUB_UPSTREAM_REPOSITORY//[\/]} ${{ inputs.upstream-branch }} 
+      - run: git merge ${GITHUB_UPSTREAM_REPOSITORY//[\/]}/${{ inputs.upstream-branch }}
+      - run: git push --force --set-upstream origin update/${{ inputs.upstream-repository }}
+      - name: "Create Pull Request"
+        # Using the fork because of https://github.com/repo-sync/pull-request/pull/69
+        # uses: repo-sync/pull-request@v2
+        uses: m4heshd/pull-request@be3e95b88c693d8766348463573b4e6b812d518b
+        with:
+          source_branch: add/${{ inputs.upstream-repository }}
+          destination_branch: ${{ inputs.downstream-branch }}
+          pr_title: "Updating ${{ inputs.upstream-repository }}"
+          pr_body: ${{ inputs.pr-body }}
+          pr_assignee: ${{ inputs.assignee }}
+          pr_allow_empty: false
+          github_token: ${{ secrets.token }}
